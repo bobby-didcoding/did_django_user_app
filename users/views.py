@@ -41,60 +41,60 @@ def sign_up(request):
 	#redirect if user is already signed in
 	if request.user.is_authenticated:
 		return redirect(reverse('users:account'))
-	else:
-		u_form = UserForm()
-		up_form = UserProfileForm()
-		result = "error"
-		message = "Something went wrong. Please check and try again"
 
-		if request.is_ajax() and request.method == "POST":
-			u_form = UserForm(data = request.POST)
-			up_form = UserProfileForm(data = request.POST)
+	u_form = UserForm()
+	up_form = UserProfileForm()
+	result = "error"
+	message = "Something went wrong. Please check and try again"
+
+	if request.is_ajax() and request.method == "POST":
+		u_form = UserForm(data = request.POST)
+		up_form = UserProfileForm(data = request.POST)
+		
+		#if both forms are valid, do something
+		if u_form.is_valid() and up_form.is_valid():
+			user = u_form.save()
+
+			#commit = False is used as userprofile.user can not be null
+			up = up_form.save(commit = False)
+			up.user = user
+			up.save()
+
+			# Mark user profile as inactive until verified
+			user.is_active = False
+			user.email = user.username
+			user.save()
+
+			#create a new token
+			token = TokenGenerator()
+			make_token = token.make_token(user)
+
+			#Create a usertoken object to store token
+			ut = UserToken.objects.create(user=user, token = make_token)
 			
-			#if both forms are valid, do something
-			if u_form.is_valid() and up_form.is_valid():
-				user = u_form.save()
-
-				#commit = False is used as userprofile.user can not be null
-				up = up_form.save(commit = False)
-				up.user = user
-				up.save()
-
-				# Mark user profile as inactive until verified
-				user.is_active = False
-				user.email = user.username
-				user.save()
-
-				#create a new token
-				token = TokenGenerator()
-				make_token = token.make_token(user)
-
-				#Create a usertoken object to store token
-				ut = UserToken.objects.create(user=user, token = make_token)
-				
-				#send email verification email
-				CreateEmail(
-					request,
-					email_account = "donotreply",
-					subject = 'Verify your email',
-					email = user.username,
-					cc = [],
-					template = "verification_email.html",
-					token = make_token,
-					url_safe = urlsafe_base64_encode(force_bytes(user.pk))
-					)
-				result = "perfect"
-				message = "We have sent you an email to verify your account"
-			else:
-				message = FormErrors(u_form, up_form)
-
-			return HttpResponse(
-				json.dumps({"result": result, "message": message}),
-				content_type="application/json"
+			#send email verification email
+			CreateEmail(
+				request,
+				email_account = "donotreply",
+				subject = 'Verify your email',
+				email = user.username,
+				cc = [],
+				template = "verification_email.html",
+				token = make_token,
+				url_safe = urlsafe_base64_encode(force_bytes(user.pk))
 				)
-			
-		context = {'u_form':u_form, 'up_form':up_form}
-		return render(request, 'users/sign_up.html', context)
+			result = "perfect"
+			message = "We have sent you an email to verify your account"
+		else:
+			message = FormErrors(u_form, up_form)
+
+		return HttpResponse(
+			json.dumps({"result": result, "message": message}),
+			content_type="application/json"
+			)
+		
+	context = {'u_form':u_form, 'up_form':up_form}
+	return render(request, 'users/sign_up.html', context)
 
 
 

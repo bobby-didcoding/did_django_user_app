@@ -88,8 +88,6 @@ class CreateEmail:
 		if self.url_safe:
 			context["url_safe"] = self.url_safe
 
-		print(context)
-
 		email_accounts = {
 			"donotreply": {
 				'name': settings.EMAIL_HOST_USER,
